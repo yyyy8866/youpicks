@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="icon-180.png">
+<meta name="theme-color" content="#0b0e13">
+<title>YouPicks TV</title>
+<style>
+:root{
+  --bg:#0b0e13; --bg2:#161c25; --bg3:#1f2731; --line:#2b3542;
+  --fg:#eef3f9; --dim:#9fadbf; --faint:#6e7c8e;
+  --accent:#4fd1c5; --accent2:#f6c35c; --good:#5fcf80; --warn:#f0a35e;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);overflow:hidden;height:100%}
+body{font:20px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+#app{position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden}
+#scroll{position:absolute;top:0;left:0;right:0;padding:36px 48px 120px;transition:transform .22s ease-out}
+
+.top{display:flex;align-items:flex-end;margin-bottom:26px}
+.logo{font-size:30px;font-weight:800;letter-spacing:-.02em}
+.logo span{color:var(--accent)}
+.topmeta{margin-left:auto;text-align:right;color:var(--dim);font-size:17px}
+.topmeta b{color:var(--fg)}
+
+.rowtitle{font-size:21px;font-weight:700;margin:0 0 10px;color:var(--fg)}
+.rowtitle em{font-style:normal;color:var(--faint);font-weight:500;font-size:17px;margin-left:10px}
+.row{white-space:nowrap;overflow:hidden;padding:6px 0 22px}
+.cell{display:inline-block;vertical-align:top;white-space:normal;margin-right:18px;
+  border-radius:12px;border:3px solid transparent;background:var(--bg2);overflow:hidden;position:relative}
+.cell.foc{border-color:var(--accent);box-shadow:0 0 0 5px rgba(79,209,197,.22)}
+
+.tile{width:330px}
+.tile .ph{position:relative;height:186px;background:var(--bg3)}
+.tile .ph img{width:100%;height:100%;display:block;object-fit:cover}
+.tile .d{position:absolute;right:7px;bottom:7px;background:rgba(0,0,0,.82);color:#fff;font-size:15px;padding:1px 7px;border-radius:5px}
+.tile .ck{position:absolute;left:7px;top:7px;background:var(--good);color:#06240f;font-size:15px;font-weight:700;
+  width:28px;height:28px;line-height:28px;text-align:center;border-radius:50%}
+.tile .b{padding:11px 13px 14px}
+.tile .t{font-size:18px;font-weight:650;line-height:1.25}
+.tile .c{font-size:15px;color:var(--faint);margin-top:4px}
+.cell.seen .ph img{opacity:.45}
+
+.th{width:300px;height:240px;padding:20px}
+.th .i{font-size:40px;line-height:1}
+.th .n{font-size:21px;font-weight:700;margin-top:10px}
+.th .s{font-size:16px;color:var(--dim);margin-top:3px}
+.th .p{height:7px;border-radius:99px;background:var(--bg3);margin-top:14px;overflow:hidden}
+.th .p i{display:block;height:100%;background:var(--accent)}
+.th .x{font-size:15px;color:var(--faint);margin-top:9px}
+.th.active{background:#1d2b31}
+.th.locked{opacity:.5}
+
+.mission{display:inline-block;white-space:normal;vertical-align:top;width:420px;padding:16px 18px;
+  background:var(--bg3);border-left:4px solid var(--accent2);border-radius:10px;margin-right:18px;
+  font-size:17px;color:var(--fg)}
+.mission b{color:var(--accent2);display:block;margin-bottom:4px}
+
+/* player */
+#play{position:absolute;top:0;left:0;right:0;bottom:0;background:#000;display:none}
+#play.on{display:block}
+#stage{position:absolute;top:34px;left:6%;right:6%;height:0;padding-bottom:42%;background:#05070a;border-radius:10px;overflow:hidden}
+#stage iframe,#stage img{position:absolute;top:0;left:0;width:100%;height:100%;border:0;object-fit:cover}
+#pinfo{position:absolute;left:6%;right:6%;bottom:118px;color:#fff}
+#pinfo .t{font-size:24px;font-weight:700}
+#pinfo .c{font-size:17px;color:#a7b4c4;margin-top:3px}
+#pinfo .w{font-size:17px;color:#cbd5e1;margin-top:7px;max-width:70ch}
+#pinfo .warn{color:var(--warn)}
+#pbar{position:absolute;left:6%;right:6%;bottom:34px;white-space:nowrap}
+.pb{display:inline-block;padding:12px 22px;margin-right:12px;border-radius:11px;background:rgba(255,255,255,.12);
+  color:#fff;font-size:18px;font-weight:650;border:3px solid transparent}
+.pb.foc{border-color:var(--accent);background:rgba(79,209,197,.26)}
+.pb.on{background:var(--good);color:#06240f}
+#hint{position:absolute;left:0;right:0;bottom:0;padding:12px 48px 14px;color:var(--faint);font-size:15px;text-align:center;background:linear-gradient(to top,var(--bg) 62%,rgba(11,14,19,0))}
+#toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.86);
+  color:#fff;padding:18px 26px;border-radius:12px;font-size:20px;display:none;z-index:90;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="scroll"></div>
+  <div id="hint">&#9664; &#9654; move &nbsp;&middot;&nbsp; &#9650; &#9660; change row &nbsp;&middot;&nbsp; OK play &nbsp;&middot;&nbsp; BACK up a level</div>
+</div>
+
+<div id="play">
+  <div id="stage"></div>
+  <div id="pinfo"></div>
+  <div id="pbar"></div>
+</div>
+<div id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+
+var KEY = "youpicks.v1";
+var S = { watched:{}, theme:null, done:[], unlocked:[], autoplay:true, light:false, big:false, cat:"all" };
+try { var raw = localStorage.getItem(KEY);
+  if (raw){ var p = JSON.parse(raw); for (var k in p) if (p.hasOwnProperty(k)) S[k] = p[k]; } } catch(e){}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+var V = {}, ALIVE = [];
+for (var i=0;i<DATA.videos.length;i++){ var v = DATA.videos[i]; V[v.id]=v; if (!v.dead) ALIVE.push(v); }
+var THEMES = DATA.themes.slice().sort(function(a,b){ return a.order-b.order; });
+
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function themeIds(t){ var o=[],i,j; for(i=0;i<t.stages.length;i++){ var it=t.stages[i].items;
+  for(j=0;j<it.length;j++) if (V[it[j].id] && !V[it[j].id].dead) o.push(it[j].id); } return o; }
+function prog(t){ var ids=themeIds(t),n=0; for(var i=0;i<ids.length;i++) if (S.watched[ids[i]]) n++;
+  return {done:n,total:ids.length,pct:ids.length?Math.round(n*100/ids.length):0}; }
+function complete(t){ var p=prog(t); return p.total>0 && p.done===p.total; }
+function unlocked(t){
+  if (!DATA.site.strictOrder) return true;
+  if (t.order===1) return true;
+  if (S.unlocked.indexOf(t.id)>=0) return true;
+  for (var i=0;i<THEMES.length;i++) if (THEMES[i].order===t.order-1) return complete(THEMES[i]);
+  return true;
+}
+function active(){
+  var i,t=null;
+  if (S.theme) for(i=0;i<THEMES.length;i++) if (THEMES[i].id===S.theme) t=THEMES[i];
+  if (t) return t;
+  for(i=0;i<THEMES.length;i++) if (unlocked(THEMES[i]) && !complete(THEMES[i])) return THEMES[i];
+  return THEMES[0];
+}
+
+/* ---------------- grid model ---------------- */
+var rows = [], focus = {r:0,c:0}, scroller = document.getElementById("scroll");
+
+function build(){
+  var t = active(), h = "", i, j;
+  rows = [];
+
+  var p = prog(t);
+  h += '<div class="top"><div class="logo">You<span>Picks</span></div>'+
+       '<div class="topmeta">'+t.icon+' <b>'+esc(t.name)+'</b> &middot; '+p.done+' of '+p.total+' watched<br>'+
+       '<span style="font-size:15px;color:var(--faint)">'+esc(DATA.site.audience)+' &middot; list checked '+esc(DATA.built)+'</span></div></div>';
+
+  // row 0: themes
+  var r0 = [];
+  h += '<div class="rowtitle">Quests<em>finish one to open the next</em></div><div class="row" data-r="0">';
+  for (i=0;i<THEMES.length;i++){
+    var th = THEMES[i], tp = prog(th), un = unlocked(th), cm = complete(th);
+    h += '<div class="cell th'+(th.id===t.id?' active':'')+(un?'':' locked')+'" data-r="0" data-c="'+i+'">'+
+      '<div class="i">'+th.icon+'</div><div class="n">'+th.order+'. '+esc(th.name)+'</div>'+
+      '<div class="s">'+esc(th.tagline)+'</div>'+
+      '<div class="p"><i style="width:'+tp.pct+'%"></i></div>'+
+      '<div class="x">'+(cm?'&#10003; finished':(un?tp.done+' / '+tp.total:'&#128274; locked &middot; OK to open'))+'</div></div>';
+    r0.push({kind:"theme", id:th.id, locked:!un});
+  }
+  h += '</div>';
+  rows.push(r0);
+
+  // stage rows
+  for (i=0;i<t.stages.length;i++){
+    var st = t.stages[i], rr = [], done = true;
+    for (j=0;j<st.items.length;j++) if (!S.watched[st.items[j].id]) done = false;
+    h += '<div class="rowtitle">'+(done?'&#10003; ':st.icon+' ')+'Stage '+(i+1)+' &middot; '+esc(st.name)+
+         '<em>'+esc(st.goal)+'</em></div><div class="row" data-r="'+rows.length+'">';
+    for (j=0;j<st.items.length;j++){
+      var vd = V[st.items[j].id];
+      if (!vd || vd.dead) continue;
+      var seen = !!S.watched[vd.id];
+      h += '<div class="cell tile'+(seen?' seen':'')+'" data-r="'+rows.length+'" data-c="'+rr.length+'">'+
+        '<div class="ph"><img src="'+vd.cover+'" alt="">'+
+        (seen?'<div class="ck">&#10003;</div>':'')+'<div class="d">'+vd.duration+'</div></div>'+
+        '<div class="b"><div class="t">'+esc(vd.title)+'</div>'+
+        '<div class="c">'+esc(vd.channel)+' &middot; age '+vd.minAge+'+</div></div></div>';
+      rr.push({kind:"video", id:vd.id, theme:t.id});
+    }
+    if (st.mission && st.mission.text){
+      h += '<div class="mission"><b>Hands-on task</b>'+esc(st.mission.text)+'</div>';
+    }
+    h += '</div>';
+    rows.push(rr);
+  }
+
+  // last row: everything
+  var ra = [];
+  h += '<div class="rowtitle">Everything on the list<em>'+ALIVE.length+' videos</em></div><div class="row" data-r="'+rows.length+'">';
+  for (i=0;i<ALIVE.length;i++){
+    var av = ALIVE[i], sn = !!S.watched[av.id];
+    h += '<div class="cell tile'+(sn?' seen':'')+'" data-r="'+rows.length+'" data-c="'+i+'">'+
+      '<div class="ph"><img src="'+av.cover+'" alt="">'+(sn?'<div class="ck">&#10003;</div>':'')+
+      '<div class="d">'+av.duration+'</div></div>'+
+      '<div class="b"><div class="t">'+esc(av.title)+'</div>'+
+      '<div class="c">'+esc(av.channel)+' &middot; '+esc(av.category)+'</div></div></div>';
+    ra.push({kind:"video", id:av.id, theme:null});
+  }
+  h += '</div>';
+  rows.push(ra);
+
+  scroller.innerHTML = h;
+  if (focus.r >= rows.length) focus.r = rows.length-1;
+  if (!rows[focus.r] || focus.c >= rows[focus.r].length) focus.c = 0;
+  paint();
+}
+
+function cellEl(r,c){ return scroller.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]'); }
+function paint(){
+  var old = scroller.getElementsByClassName("foc");
+  while (old.length) old[0].className = old[0].className.replace(/\s*foc/,"");
+  var el = cellEl(focus.r, focus.c);
+  if (!el) return;
+  el.className += " foc";
+  // vertical: move the page so the focused row sits comfortably
+  var rowEl = el.parentNode, titleEl = rowEl.previousSibling;
+  var top = (titleEl && titleEl.offsetTop != null ? titleEl.offsetTop : rowEl.offsetTop);
+  var y = Math.max(0, top - 150);
+  scroller.style.transform = "translateY(" + (-y) + "px)";
+  // horizontal: scroll the row
+  var want = el.offsetLeft - 60;
+  rowEl.scrollLeft = Math.max(0, want);
+  if (rowEl.scrollLeft !== Math.max(0, want)) rowEl.style.textIndent = "0";
+}
+
+function move(dr, dc){
+  var r = focus.r + dr;
+  if (dr !== 0){
+    while (r >= 0 && r < rows.length && rows[r].length === 0) r += (dr>0?1:-1);
+    if (r < 0 || r >= rows.length) return;
+    focus.r = r;
+    if (focus.c >= rows[r].length) focus.c = rows[r].length - 1;
+  } else {
+    var c = focus.c + dc;
+    if (c < 0 || c >= rows[focus.r].length) return;
+    focus.c = c;
+  }
+  paint();
+}
+
+function toast(msg, ms){
+  var t = document.getElementById("toast");
+  t.innerHTML = msg; t.style.display = "block";
+  if (toast._h) clearTimeout(toast._h);
+  toast._h = setTimeout(function(){ t.style.display = "none"; }, ms||1600);
+}
+
+function activate(){
+  var item = rows[focus.r] && rows[focus.r][focus.c];
+  if (!item) return;
+  if (item.kind === "theme"){
+    var th = null;
+    for (var i=0;i<THEMES.length;i++) if (THEMES[i].id === item.id) th = THEMES[i];
+    if (item.locked){
+      S.unlocked.push(item.id); save();
+      toast("Quest unlocked by parent:<br><b>"+esc(th.name)+"</b>");
+    }
+    S.theme = item.id; save();
+    focus = {r:1,c:0};
+    build();
+    return;
+  }
+  openPlayer(item.id, item.theme);
+}
+
+/* ---------------- player ---------------- */
+var playEl = document.getElementById("play"), stage = document.getElementById("stage"),
+    pinfo = document.getElementById("pinfo"), pbar = document.getElementById("pbar");
+var pq = [], pi = 0, yt = null, apiReady = false, want = null, bi = 0, playing = false;
+var BTN = ["play","watched","prev","next","back"];
+
+window.onYouTubeIframeAPIReady = function(){ apiReady = true; if (want){ var w = want; want = null; load(w); } };
+(function(){ var s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; s.async = true;
+  document.head.appendChild(s); })();
+
+function openPlayer(id, themeId){
+  pq = [];
+  if (themeId){
+    for (var i=0;i<THEMES.length;i++) if (THEMES[i].id === themeId) pq = themeIds(THEMES[i]);
+  }
+  if (!pq.length) pq = ALIVE.map(function(v){ return v.id; });
+  pi = pq.indexOf(id);
+  if (pi < 0){ pq = [id].concat(pq); pi = 0; }
+  bi = 0;
+  playEl.className = "on";
+  load(pq[pi]);
+}
+function closePlayer(){
+  if (yt){ try { yt.destroy(); } catch(e){} yt = null; }
+  stage.innerHTML = ""; playEl.className = ""; build();
+}
+function load(id){
+  var v = V[id];
+  pinfo.innerHTML = '<div class="t">'+esc(v.title)+'</div>'+
+    '<div class="c">'+esc(v.channel)+' &middot; '+v.duration+' &middot; '+esc(v.category)+' &middot; age '+v.minAge+'+ &middot; '+
+    (pi+1)+' of '+pq.length+'</div>'+
+    '<div class="w">'+esc(v.reason)+'</div>'+
+    (v.caution ? '<div class="w warn">&#9888; '+esc(v.caution)+'</div>' : '');
+  drawBar();
+  if (!apiReady || !window.YT || !YT.Player){
+    stage.innerHTML = '<img src="'+v.cover+'" alt="">';
+    want = id; return;
+  }
+  if (yt){ try { yt.destroy(); } catch(e){} yt = null; }
+  stage.innerHTML = '<div id="ytv"></div>';
+  yt = new YT.Player("ytv", {
+    videoId: id,
+    host: "https://www.youtube-nocookie.com",
+    playerVars: { rel:0, iv_load_policy:3, playsinline:1, modestbranding:1, controls:1,
+      enablejsapi:1, autoplay:1, origin: location.protocol + "//" + location.host },
+    events: {
+      onReady: function(ev){ try { ev.target.playVideo(); } catch(e){} },
+      onStateChange: function(ev){
+        playing = (ev.data === 1);
+        drawBar();
+        if (ev.data === YT.PlayerState.ENDED){
+          if (!S.watched[pq[pi]]){ S.watched[pq[pi]] = Date.now(); save(); }
+          if (S.autoplay && pi+1 < pq.length){ pi++; load(pq[pi]); }
+          else { toast("Stage finished.<br>Nothing plays after the list."); drawBar(); }
+        }
+      }
+    }
+  });
+}
+function drawBar(){
+  var seen = !!S.watched[pq[pi]];
+  var lab = { play: playing ? "&#10074;&#10074; Pause" : "&#9654; Play",
+              watched: seen ? "&#10003; Watched" : "Mark watched",
+              prev: "&#9664; Previous", next: "Next &#9654;", back: "Back to list" };
+  var h = "";
+  for (var i=0;i<BTN.length;i++){
+    var b = BTN[i], dis = (b==="prev" && pi===0) || (b==="next" && pi===pq.length-1);
+    if (dis) continue;
+    h += '<span class="pb'+(BTN[i]===BTN[bi]?' foc':'')+(b==="watched"&&seen?' on':'')+'" data-b="'+b+'">'+lab[b]+'</span>';
+  }
+  pbar.innerHTML = h;
+  // keep focus index on a visible button
+  if (!pbar.querySelector('.pb.foc')){ bi = 0; pbar.firstChild.className += " foc"; }
+}
+function barMove(d){
+  var btns = pbar.getElementsByClassName("pb");
+  var at = 0, i;
+  for (i=0;i<btns.length;i++) if (btns[i].className.indexOf("foc")>=0) at = i;
+  at += d;
+  if (at < 0) at = 0;
+  if (at > btns.length-1) at = btns.length-1;
+  for (i=0;i<btns.length;i++) btns[i].className = btns[i].className.replace(/\s*foc/,"");
+  btns[at].className += " foc";
+  for (i=0;i<BTN.length;i++) if (BTN[i] === btns[at].getAttribute("data-b")) bi = i;
+}
+function barFire(){
+  var f = pbar.querySelector('.pb.foc');
+  if (!f) return;
+  var b = f.getAttribute("data-b");
+  if (b === "back") return closePlayer();
+  if (b === "prev" && pi > 0){ pi--; return load(pq[pi]); }
+  if (b === "next" && pi < pq.length-1){ pi++; return load(pq[pi]); }
+  if (b === "watched"){
+    if (S.watched[pq[pi]]) delete S.watched[pq[pi]]; else S.watched[pq[pi]] = Date.now();
+    save(); drawBar(); return;
+  }
+  if (b === "play"){
+    if (!yt) return load(pq[pi]);
+    try { yt.getPlayerState() === 1 ? yt.pauseVideo() : yt.playVideo(); } catch(e){}
+  }
+}
+
+/* ---------------- remote keys ---------------- */
+var BACKS = [461, 10009, 8, 27];   /* LG, Samsung, Backspace, Esc */
+document.addEventListener("keydown", function(e){
+  var kc = e.keyCode, key = e.key, open = playEl.className === "on";
+
+  if (BACKS.indexOf(kc) >= 0 || key === "Escape" || key === "Backspace"){
+    if (open) closePlayer();
+    e.preventDefault(); return;
+  }
+  if (open){
+    if (key === "ArrowLeft"  || kc === 37){ barMove(-1); e.preventDefault(); return; }
+    if (key === "ArrowRight" || kc === 39){ barMove(1);  e.preventDefault(); return; }
+    if (key === "ArrowUp"    || kc === 38){ barMove(-1); e.preventDefault(); return; }
+    if (key === "ArrowDown"  || kc === 40){ barMove(1);  e.preventDefault(); return; }
+    if (key === "Enter" || kc === 13){ barFire(); e.preventDefault(); return; }
+    if (key === " " || kc === 32 || kc === 415 || kc === 19){
+      if (yt){ try { yt.getPlayerState() === 1 ? yt.pauseVideo() : yt.playVideo(); } catch(err){} }
+      e.preventDefault(); return;
+    }
+    return;
+  }
+  if (key === "ArrowLeft"  || kc === 37){ move(0,-1); e.preventDefault(); return; }
+  if (key === "ArrowRight" || kc === 39){ move(0, 1); e.preventDefault(); return; }
+  if (key === "ArrowUp"    || kc === 38){ move(-1,0); e.preventDefault(); return; }
+  if (key === "ArrowDown"  || kc === 40){ move( 1,0); e.preventDefault(); return; }
+  if (key === "Enter" || kc === 13){ activate(); e.preventDefault(); return; }
+}, false);
+
+/* pointer / magic-remote support */
+document.addEventListener("click", function(e){
+  var c = e.target.closest ? e.target.closest(".cell") : null;
+  if (c){
+    focus = { r: parseInt(c.getAttribute("data-r"),10), c: parseInt(c.getAttribute("data-c"),10) };
+    paint(); activate(); return;
+  }
+  var b = e.target.closest ? e.target.closest(".pb") : null;
+  if (b){
+    var btns = pbar.getElementsByClassName("pb");
+    for (var i=0;i<btns.length;i++) btns[i].className = btns[i].className.replace(/\s*foc/,"");
+    b.className += " foc";
+    barFire();
+  }
+}, false);
+
+/* webOS: handle the TV going back to the launcher */
+document.addEventListener("webOSRelaunch", function(){ build(); }, false);
+
+build();
+if (!S.theme){ S.theme = active().id; save(); }
+})();
+</script>
+</body>
+</html>

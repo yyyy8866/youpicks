@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YouPicks</title>
+<link rel="icon" href="icon-180.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<meta name="description" content="A hand-picked YouTube player for one child. No recommendations, no autoplay into the wild.">
+<style>
+:root{
+  --bg:#0e1116; --bg2:#151a21; --bg3:#1c232c; --line:#262f3a;
+  --fg:#e8edf4; --dim:#9aa7b8; --faint:#6b7889;
+  --accent:#4fd1c5; --accent2:#f6c35c; --good:#5fcf80; --warn:#f0a35e; --bad:#e2686d;
+  --r:14px; --sh:0 6px 24px rgba(0,0,0,.35);
+  --fs:16px;
+}
+html[data-theme="light"]{
+  --bg:#f6f7f9; --bg2:#ffffff; --bg3:#eef1f5; --line:#dde3ea;
+  --fg:#16202b; --dim:#55657a; --faint:#8695a8;
+  --accent:#12897c; --accent2:#a9741a; --good:#2e8c4c; --warn:#a9601a; --bad:#bc3b41;
+  --sh:0 6px 20px rgba(20,30,45,.10);
+}
+html[data-big="1"]{ --fs:20px; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg)}
+body{font:var(--fs)/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  overscroll-behavior-y:none}
+a{color:var(--accent);text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.hide{display:none !important}
+
+/* ---------- header ---------- */
+header{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;max-width:1180px;margin:0 auto;padding:10px 14px}
+.brand{font-weight:700;letter-spacing:-.02em;font-size:1.12em;margin-right:4px;white-space:nowrap}
+.brand span{color:var(--accent)}
+nav{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;margin:0 6px;
+  scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{padding:7px 11px;margin-right:4px;border-radius:999px;color:var(--dim);white-space:nowrap;font-size:.92em}
+nav button:hover{color:var(--fg);background:var(--bg3)}
+nav button[aria-current="true"]{background:var(--bg3);color:var(--fg);font-weight:600}
+.tools{display:flex;align-items:center;flex:0 0 auto}
+.tool{width:34px;height:34px;border-radius:10px;color:var(--dim);font-size:1.05em;line-height:34px;text-align:center;margin-left:3px}
+.tool:hover{background:var(--bg3);color:var(--fg)}
+.tool[aria-pressed="true"]{background:var(--accent);color:#07231f}
+html[data-theme="light"] .tool[aria-pressed="true"]{color:#fff}
+
+main{max-width:1180px;margin:0 auto;padding:18px 14px 80px}
+h1{font-size:1.5em;letter-spacing:-.02em;margin:.2em 0 .1em}
+h2{font-size:1.15em;letter-spacing:-.01em;margin:1.6em 0 .5em}
+.sub{color:var(--dim);margin:0 0 1.2em;max-width:66ch}
+.tiny{font-size:.84em;color:var(--faint)}
+
+/* ---------- theme gallery ---------- */
+.grid{display:grid;grid-gap:14px;gap:14px;grid-template-columns:repeat(auto-fill,minmax(248px,1fr))}
+.tcard{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;text-align:left;display:block;width:100%;transition:transform .12s,border-color .12s}
+.tcard:hover{border-color:var(--accent);transform:translateY(-2px)}
+.tcard .ti{font-size:1.9em;line-height:1}
+.tcard .tn{font-weight:650;margin-top:8px;font-size:1.05em}
+.tcard .tt{color:var(--dim);font-size:.9em;margin-top:2px}
+.tcard .meta{display:flex;align-items:center;margin-top:12px;font-size:.82em;color:var(--faint)}
+.tcard .meta b{color:var(--dim);font-weight:600;margin-right:8px}
+.bar2{height:6px;border-radius:99px;background:var(--bg3);overflow:hidden;margin-top:10px}
+.bar2 i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.74em;font-weight:650;
+  background:var(--bg3);color:var(--dim);vertical-align:middle}
+.badge.ok{background:rgba(95,207,128,.16);color:var(--good)}
+.badge.now{background:rgba(79,209,197,.16);color:var(--accent)}
+.badge.lock{background:rgba(0,0,0,.18);color:var(--faint)}
+.tcard.locked{opacity:.62}
+.tcard.locked:hover{border-color:var(--line);transform:none}
+.unlock{position:absolute;right:12px;bottom:12px;font-size:.78em;color:var(--faint);
+  border:1px solid var(--line);border-radius:8px;padding:3px 8px}
+.unlock:hover{color:var(--fg);border-color:var(--accent)}
+
+/* ---------- quest ---------- */
+.stage{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
+.sh{display:flex;align-items:flex-start;padding:14px 16px;width:100%;text-align:left}
+.sh:hover{background:var(--bg3)}
+.sno{flex:0 0 auto;width:40px;height:40px;border-radius:12px;background:var(--bg3);
+  text-align:center;line-height:40px;font-size:1.15em;margin-right:12px}
+.stage.done .sno{background:rgba(95,207,128,.18)}
+.sb{flex:1 1 auto;min-width:0}
+.sb .n{font-weight:650}
+.sb .g{color:var(--dim);font-size:.88em}
+.sx{flex:0 0 auto;color:var(--faint);font-size:.85em;margin-left:10px;text-align:right;white-space:nowrap}
+.items{padding:0 16px 14px;border-top:1px solid var(--line)}
+.row{display:flex;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.thumb{position:relative;flex:0 0 auto;width:132px;margin-right:12px;border-radius:9px;overflow:hidden;
+  background:var(--bg3);cursor:pointer}
+.thumb .ph{padding-top:56.25%}
+.thumb img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block}
+.thumb .d{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.78);color:#fff;
+  font-size:11px;padding:1px 5px;border-radius:4px;font-variant-numeric:tabular-nums}
+.thumb .pl{position:absolute;top:50%;left:50%;width:38px;height:38px;margin:-19px 0 0 -19px;
+  border-radius:50%;background:rgba(0,0,0,.55);color:#fff;line-height:38px;text-align:center;font-size:.9em;opacity:0;transition:opacity .15s}
+.thumb:hover .pl{opacity:1}
+.rb{flex:1 1 auto;min-width:0}
+.rb .t{font-weight:600;cursor:pointer;display:block;text-align:left}
+.rb .t:hover{color:var(--accent)}
+.rb .c{color:var(--faint);font-size:.84em;margin-top:1px}
+.rb .why{color:var(--dim);font-size:.89em;margin-top:5px}
+.note{color:var(--accent);font-size:.84em;margin-top:4px}
+.caut{color:var(--warn);font-size:.84em;margin-top:4px}
+.tick{flex:0 0 auto;margin-left:10px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+  color:var(--faint);line-height:32px;text-align:center}
+.tick:hover{border-color:var(--good);color:var(--good)}
+.tick[aria-pressed="true"]{background:var(--good);border-color:var(--good);color:#06240f}
+.row.seen .thumb img{opacity:.5}
+.row.seen .t{color:var(--dim)}
+.mission{margin:4px 0 0;padding:12px 14px;background:var(--bg3);border-radius:10px;
+  border-left:3px solid var(--accent2);font-size:.92em}
+.mission b{color:var(--accent2)}
+.tips{background:var(--bg2);border:1px dashed var(--line);border-radius:var(--r);padding:12px 16px;margin:0 0 16px}
+.tips ul{margin:.3em 0 0;padding-left:1.1em;color:var(--dim)}
+.done-banner{background:linear-gradient(135deg,rgba(79,209,197,.16),rgba(246,195,92,.14));
+  border:1px solid var(--accent);border-radius:var(--r);padding:18px;margin-bottom:16px}
+.btn{display:inline-block;padding:9px 16px;border-radius:10px;background:var(--accent);color:#07231f;
+  font-weight:650;margin-top:10px;margin-right:8px}
+html[data-theme="light"] .btn{color:#fff}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--fg);font-weight:600}
+.back{color:var(--dim);font-size:.9em;margin-bottom:8px;display:inline-block}
+.back:hover{color:var(--fg)}
+
+/* ---------- feed ---------- */
+.feed{position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:#000;
+  overflow-y:scroll;overflow-x:hidden;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch}
+.card{position:relative;height:100%;width:100%;scroll-snap-align:start;scroll-snap-stop:always;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;padding:52px 12px 96px}
+.stagewrap{width:100%;max-width:1000px}
+.stagewrap .ph{position:relative;padding-top:56.25%;background:#07080a;border-radius:10px;overflow:hidden}
+.stagewrap .ph>iframe,.stagewrap .ph>img,.stagewrap .ph>div{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+.poster{cursor:pointer}
+.poster img{object-fit:cover}
+.poster .pbig{position:absolute;top:50%;left:50%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;
+  background:rgba(0,0,0,.6);color:#fff;line-height:74px;text-align:center;font-size:1.5em}
+.cinfo{color:#fff;margin-top:12px;max-width:1000px;width:100%}
+.cinfo .t{font-weight:650;font-size:1.1em}
+.cinfo .c{color:#aab6c6;font-size:.86em;margin-top:2px}
+.cinfo .why{color:#cfd8e4;font-size:.9em;margin-top:6px;max-width:72ch}
+.cinfo .caut{color:var(--warn)}
+.fbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;align-items:center;
+  padding:10px 14px;background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,.45));color:#fff}
+.fbar .pos{font-size:.84em;color:#9fb0c2;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.fbar .sp{flex:1 1 auto}
+.fb{padding:8px 13px;border-radius:9px;background:rgba(255,255,255,.12);margin-left:7px;font-size:.9em;font-weight:600}
+.fb:hover{background:rgba(255,255,255,.22)}
+.fb.main{background:var(--accent);color:#07231f}
+.fb.on{background:var(--good);color:#06240f}
+.ftop{position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;padding:9px 12px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.85),transparent);color:#fff}
+.ftop .ti{font-size:.86em;color:#cbd5e1;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 8px}
+.xbtn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.14);line-height:34px;text-align:center;flex:0 0 auto}
+
+/* ---------- channels ---------- */
+.tier{display:flex;align-items:flex-start;margin-bottom:16px}
+.tl{flex:0 0 auto;width:54px;margin-right:12px;text-align:center}
+.tl .g{font-size:1.5em;font-weight:800;border-radius:12px;padding:6px 0;color:#07231f;background:var(--accent)}
+.tier[data-t="A"] .g{background:#7ec8a9}
+.tier[data-t="B"] .g{background:var(--accent2)}
+.tier[data-t="C"] .g{background:var(--warn)}
+.tier[data-t="D"] .g{background:#7a8595;color:#fff}
+.tl .lb{font-size:.72em;color:var(--faint);margin-top:4px;line-height:1.25}
+.tgrid{flex:1 1 auto;display:grid;grid-gap:10px;gap:10px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.ch{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.ch .n{font-weight:650}
+.ch .w{color:var(--dim);font-size:.86em;margin-top:2px}
+.ch .l{color:var(--fg);font-size:.88em;margin-top:6px;opacity:.85}
+.kid{margin-top:8px;font-size:.76em;font-weight:650;padding:2px 8px;border-radius:99px;display:inline-block}
+.kid.go{background:rgba(95,207,128,.16);color:var(--good)}
+.kid.interest{background:rgba(79,209,197,.16);color:var(--accent)}
+.kid.pick{background:rgba(240,163,94,.16);color:var(--warn)}
+.kid.later{background:rgba(226,104,109,.14);color:var(--bad)}
+
+/* ---------- browse ---------- */
+.chips{display:flex;flex-wrap:wrap;margin:0 0 14px}
+.chip{padding:6px 12px;border-radius:99px;border:1px solid var(--line);color:var(--dim);
+  margin:0 7px 7px 0;font-size:.9em}
+.chip:hover{color:var(--fg);border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#07231f;font-weight:650}
+html[data-theme="light"] .chip[aria-pressed="true"]{color:#fff}
+.vgrid{display:grid;grid-gap:14px;gap:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.vc{background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-align:left;
+  display:block;width:100%}
+.vc:hover{border-color:var(--accent)}
+.vc .ph{position:relative;padding-top:56.25%;background:var(--bg3)}
+.vc .ph img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+.vc .ph .d{position:absolute;right:5px;bottom:5px;background:rgba(0,0,0,.78);color:#fff;font-size:11px;
+  padding:1px 5px;border-radius:4px}
+.vc .b{padding:10px 12px}
+.vc .t{font-weight:600;font-size:.95em}
+.vc .c{color:var(--faint);font-size:.8em;margin-top:2px}
+.vc.seen img{opacity:.5}
+.age{border:1px solid var(--line);border-radius:99px;padding:1px 7px;font-size:.74em;color:var(--faint);margin-left:6px}
+
+/* ---------- about ---------- */
+.prose{max-width:70ch}
+.prose p{color:var(--dim)}
+.prose h3{margin:1.5em 0 .3em;font-size:1em}
+.prose ul{color:var(--dim)}
+kbd{background:var(--bg3);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.85em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.foot{border-top:1px solid var(--line);margin-top:34px;padding-top:14px;color:var(--faint);font-size:.84em}
+@media (max-width:560px){
+  .thumb{width:104px}
+  .tl{width:44px}
+  .card{padding:46px 8px 92px}
+  main{padding:14px 12px 80px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="brand">You<span>Picks</span></div>
+    <nav id="nav"></nav>
+    <div class="tools">
+      <button class="tool" id="tTv" title="TV version">&#128250;</button>
+      <button class="tool" id="tBig" title="Big screen mode" aria-pressed="false">&#128269;</button>
+      <button class="tool" id="tLight" title="Light / dark">&#9789;</button>
+    </div>
+  </div>
+</header>
+
+<main id="main"></main>
+<div id="feed" class="hide"></div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================ state ============================ */
+var KEY = "youpicks.v1";
+var S = { watched:{}, theme:null, done:[], unlocked:[], autoplay:true, light:false, big:false, cat:"all" };
+try {
+  var raw = localStorage.getItem(KEY);
+  if (raw) { var p = JSON.parse(raw); for (var k in p) if (p.hasOwnProperty(k)) S[k] = p[k]; }
+} catch(e){}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+var V = {};           // id -> video
+var ALIVE = [];
+for (var i=0;i<DATA.videos.length;i++){
+  var v = DATA.videos[i]; V[v.id] = v; if (!v.dead) ALIVE.push(v);
+}
+var THEMES = DATA.themes.slice().sort(function(a,b){ return a.order - b.order; });
+
+function themeIds(t){
+  var out = [];
+  for (var i=0;i<t.stages.length;i++){
+    var it = t.stages[i].items;
+    for (var j=0;j<it.length;j++) if (V[it[j].id] && !V[it[j].id].dead) out.push(it[j].id);
+  }
+  return out;
+}
+function stageDone(st){
+  for (var i=0;i<st.items.length;i++){
+    var id = st.items[i].id;
+    if (V[id] && !V[id].dead && !S.watched[id]) return false;
+  }
+  return true;
+}
+function themeProgress(t){
+  var ids = themeIds(t), n = 0;
+  for (var i=0;i<ids.length;i++) if (S.watched[ids[i]]) n++;
+  return { done:n, total:ids.length, pct: ids.length ? Math.round(n*100/ids.length) : 0 };
+}
+function themeComplete(t){ var p = themeProgress(t); return p.total > 0 && p.done === p.total; }
+function unlocked(t){
+  if (!DATA.site.strictOrder) return true;
+  if (t.order === 1) return true;
+  if (S.unlocked.indexOf(t.id) >= 0) return true;
+  for (var i=0;i<THEMES.length;i++) if (THEMES[i].order === t.order - 1) return themeComplete(THEMES[i]);
+  return true;
+}
+function activeTheme(){
+  var t = null, i;
+  if (S.theme) for (i=0;i<THEMES.length;i++) if (THEMES[i].id === S.theme) t = THEMES[i];
+  if (t) return t;
+  for (i=0;i<THEMES.length;i++) if (unlocked(THEMES[i]) && !themeComplete(THEMES[i])) return THEMES[i];
+  return THEMES[0];
+}
+function esc(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+/* ============================ chrome ============================ */
+document.documentElement.setAttribute("data-theme", S.light ? "light" : "dark");
+document.documentElement.setAttribute("data-big", S.big ? "1" : "0");
+var tLight = document.getElementById("tLight"), tBig = document.getElementById("tBig");
+tBig.setAttribute("aria-pressed", S.big ? "true" : "false");
+tLight.onclick = function(){
+  S.light = !S.light; save();
+  document.documentElement.setAttribute("data-theme", S.light ? "light" : "dark");
+};
+tBig.onclick = function(){
+  S.big = !S.big; save();
+  document.documentElement.setAttribute("data-big", S.big ? "1" : "0");
+  tBig.setAttribute("aria-pressed", S.big ? "true" : "false");
+};
+document.getElementById("tTv").onclick = function(){ location.href = "tv.html"; };
+
+var VIEWS = [
+  ["quest","Quest"], ["themes","Themes"], ["browse","Browse"], ["channels","Channels"], ["about","About"]
+];
+var view = "quest", navEl = document.getElementById("nav"), main = document.getElementById("main");
+(function(){
+  var h = "";
+  for (var i=0;i<VIEWS.length;i++) h += '<button data-v="'+VIEWS[i][0]+'">'+VIEWS[i][1]+'</button>';
+  navEl.innerHTML = h;
+  navEl.addEventListener("click", function(e){
+    var b = e.target.closest ? e.target.closest("button[data-v]") : null;
+    if (b) go(b.getAttribute("data-v"));
+  });
+})();
+function go(v){
+  view = v;
+  var bs = navEl.getElementsByTagName("button");
+  for (var i=0;i<bs.length;i++) bs[i].setAttribute("aria-current", bs[i].getAttribute("data-v")===v ? "true":"false");
+  render(); window.scrollTo(0,0);
+}
+
+/* ============================ render ============================ */
+function render(){
+  if (view === "themes") return renderThemes();
+  if (view === "quest") return renderQuest();
+  if (view === "browse") return renderBrowse();
+  if (view === "channels") return renderChannels();
+  return renderAbout();
+}
+
+function renderThemes(){
+  var h = '<h1>Pick a quest</h1><p class="sub">Seven ladders, meant to be climbed in order &mdash; each one unlocks when the one before it is finished. '+
+    (DATA.site.strictOrder ? 'A parent can unlock any of them early.' : 'They are all open.')+'</p><div class="grid">';
+  for (var i=0;i<THEMES.length;i++){
+    var t = THEMES[i], p = themeProgress(t), un = unlocked(t), cm = themeComplete(t);
+    var badge = cm ? '<span class="badge ok">Finished</span>'
+              : (!un ? '<span class="badge lock">&#128274; Locked</span>'
+              : (p.done ? '<span class="badge now">In progress</span>' : '<span class="badge">Not started</span>'));
+    h += '<div class="tcard'+(un?'':' locked')+'" data-t="'+t.id+'">'+
+         '<div class="ti">'+t.icon+'</div>'+
+         '<div class="tn">'+t.order+'. '+esc(t.name)+'</div>'+
+         '<div class="tt">'+esc(t.tagline)+'</div>'+
+         '<div class="bar2"><i style="width:'+p.pct+'%"></i></div>'+
+         '<div class="meta"><b>'+p.done+'/'+p.total+'</b>'+badge+'<span style="margin-left:auto">age '+t.minAge+'+</span></div>'+
+         (un ? '' : '<button class="unlock" data-u="'+t.id+'">Parent: unlock</button>')+
+         '</div>';
+  }
+  main.innerHTML = h + '</div>';
+  main.onclick = function(e){
+    var u = e.target.closest ? e.target.closest("[data-u]") : null;
+    if (u){ S.unlocked.push(u.getAttribute("data-u")); save(); renderThemes(); return; }
+    var c = e.target.closest ? e.target.closest(".tcard") : null;
+    if (c && c.className.indexOf("locked") < 0){ S.theme = c.getAttribute("data-t"); save(); go("quest"); }
+  };
+}
+
+function renderQuest(){
+  var t = activeTheme(), p = themeProgress(t), i, j;
+  var h = '<button class="back" data-go="themes">&larr; All quests</button>'+
+    '<h1>'+t.icon+' '+esc(t.name)+'</h1><p class="sub">'+esc(t.intro)+'</p>';
+
+  if (themeComplete(t)){
+    var nxt = null;
+    for (i=0;i<THEMES.length;i++) if (t.next && t.next.indexOf(THEMES[i].id) >= 0) nxt = THEMES[i];
+    h += '<div class="done-banner"><b>Quest finished.</b> '+p.total+' videos, '+t.stages.length+' stages. '+
+      (nxt ? 'Next up: <b>'+nxt.icon+' '+esc(nxt.name)+'</b> &mdash; '+esc(nxt.tagline)+'.'+
+             '<div><button class="btn" data-pick="'+nxt.id+'">Start '+esc(nxt.name)+'</button>'+
+             '<button class="btn ghost" data-go="themes">Choose a different one</button></div>'
+           : 'That was the last ladder. Everything is open now.'+
+             '<div><button class="btn" data-go="themes">Back to all quests</button></div>')+
+      '</div>';
+  }
+
+  if (t.tips && t.tips.length){
+    h += '<div class="tips"><b>For the parent</b><ul>';
+    for (i=0;i<t.tips.length;i++) h += '<li>'+esc(t.tips[i])+'</li>';
+    h += '</ul></div>';
+  }
+
+  var ids = themeIds(t);
+  for (i=0;i<t.stages.length;i++){
+    var st = t.stages[i], dn = stageDone(st), cnt = 0;
+    for (j=0;j<st.items.length;j++) if (S.watched[st.items[j].id]) cnt++;
+    h += '<div class="stage'+(dn?' done':'')+'">'+
+      '<div class="sh"><div class="sno">'+(dn ? '&#10003;' : st.icon)+'</div>'+
+      '<div class="sb"><div class="n">Stage '+(i+1)+' &middot; '+esc(st.name)+'</div>'+
+      '<div class="g">'+esc(st.goal)+'</div></div>'+
+      '<div class="sx">'+cnt+'/'+st.items.length+'<br><span class="tiny">age '+st.age+'+</span></div></div>'+
+      '<div class="items">';
+    for (j=0;j<st.items.length;j++){
+      var it = st.items[j], v = V[it.id];
+      if (!v || v.dead) continue;
+      var seen = !!S.watched[v.id];
+      h += '<div class="row'+(seen?' seen':'')+'">'+
+        '<div class="thumb" data-play="'+v.id+'" data-q="theme:'+t.id+'"><div class="ph">'+
+          '<img src="'+v.cover+'" alt="" loading="lazy"><div class="d">'+v.duration+'</div><div class="pl">&#9654;</div>'+
+        '</div></div>'+
+        '<div class="rb"><button class="t" data-play="'+v.id+'" data-q="theme:'+t.id+'">'+esc(v.title)+'</button>'+
+        '<div class="c">'+esc(v.channel)+'<span class="age">age '+v.minAge+'+</span></div>'+
+        '<div class="why">'+esc(v.reason)+'</div>'+
+        (it.note ? '<div class="note">&#9656; '+esc(it.note)+'</div>' : '')+
+        (v.caution ? '<div class="caut">&#9888; '+esc(v.caution)+'</div>' : '')+
+        '</div>'+
+        '<button class="tick" data-tick="'+v.id+'" aria-pressed="'+(seen?'true':'false')+'" title="Mark watched">&#10003;</button>'+
+        '</div>';
+    }
+    if (st.mission && st.mission.text){
+      h += '<div class="mission"><b>Hands-on task</b> &mdash; '+esc(st.mission.text)+
+        (st.mission.url ? ' <a href="'+esc(st.mission.url)+'" target="_blank" rel="noopener">'+esc(st.mission.label||"Open")+' &nearr;</a>' : '')+'</div>';
+    }
+    h += '</div></div>';
+  }
+  h += '<div class="foot">Quest progress is stored in this browser only &mdash; '+p.done+' of '+p.total+' watched. '+
+       'Nothing is uploaded anywhere.</div>';
+  main.innerHTML = h;
+  main.onclick = clicks;
+}
+
+function renderBrowse(){
+  var cats = ["all"].concat(DATA.categories), i;
+  var h = '<h1>Everything on the list</h1><p class="sub">'+ALIVE.length+' videos, all hand-checked. '+
+    'Playing from here only ever moves inside this list.</p><div class="chips">';
+  for (i=0;i<cats.length;i++){
+    h += '<button class="chip" data-cat="'+esc(cats[i])+'" aria-pressed="'+(S.cat===cats[i]?'true':'false')+'">'+
+      (cats[i]==="all" ? "All" : esc(cats[i]))+'</button>';
+  }
+  h += '</div><div class="vgrid">';
+  var list = ALIVE.filter(function(v){ return S.cat==="all" || v.category===S.cat; });
+  for (i=0;i<list.length;i++){
+    var v = list[i], seen = !!S.watched[v.id];
+    h += '<button class="vc'+(seen?' seen':'')+'" data-play="'+v.id+'" data-q="cat:'+esc(S.cat)+'">'+
+      '<div class="ph"><img src="'+v.cover+'" alt="" loading="lazy"><div class="d">'+v.duration+'</div></div>'+
+      '<div class="b"><div class="t">'+(seen?'&#10003; ':'')+esc(v.title)+'</div>'+
+      '<div class="c">'+esc(v.channel)+' &middot; age '+v.minAge+'+</div></div></button>';
+  }
+  main.innerHTML = h + '</div>';
+  main.onclick = function(e){
+    var c = e.target.closest ? e.target.closest("[data-cat]") : null;
+    if (c){ S.cat = c.getAttribute("data-cat"); save(); renderBrowse(); return; }
+    clicks(e);
+  };
+}
+
+function renderChannels(){
+  var h = '<h1>Channel ranking</h1><p class="sub">Which channels get played without checking first, and which need a parent to choose the video. '+
+    'The bottom row is what has been deliberately left out.</p>';
+  for (var i=0;i<DATA.tiers.length;i++){
+    var tr = DATA.tiers[i];
+    h += '<div class="tier" data-t="'+esc(tr.tier)+'"><div class="tl"><div class="g">'+esc(tr.tier)+'</div>'+
+      '<div class="lb">'+esc(tr.label)+'</div></div><div class="tgrid">';
+    for (var j=0;j<tr.items.length;j++){
+      var c = tr.items[j];
+      var kidText = {go:"Can watch alone", interest:"If interested", pick:"Parent picks the video", later:"Later / not yet"}[c.kid] || c.kid;
+      h += '<div class="ch"><div class="n">'+(c.url ? '<a href="'+esc(c.url)+'" target="_blank" rel="noopener">'+esc(c.name)+' &nearr;</a>' : esc(c.name))+'</div>'+
+        '<div class="w">'+esc(c.what)+'</div><div class="l">'+esc(c.like)+'</div>'+
+        '<span class="kid '+esc(c.kid)+'">'+esc(kidText)+'</span></div>';
+    }
+    h += '</div></div>';
+  }
+  main.innerHTML = h;
+  main.onclick = clicks;
+}
+
+function renderAbout(){
+  var n = ALIVE.length, ch = {}, i;
+  for (i=0;i<ALIVE.length;i++) ch[ALIVE[i].channel] = 1;
+  main.innerHTML =
+  '<h1>About this player</h1>'+
+  '<div class="prose">'+
+  '<p><b>'+esc(DATA.site.name)+'</b> plays '+n+' videos from '+Object.keys(ch).length+
+  ' channels, in an order someone chose on purpose. There is no recommendation feed, no up-next, '+
+  'no search box into the rest of YouTube, and no comments. When a video ends the player moves to the '+
+  'next item on the list and stops at the end of it.</p>'+
+  '<h3>Why it exists</h3>'+
+  '<p>A child who wants to understand how things work does not need more video &mdash; they need a path. '+
+  'Each quest here is a ladder with a stated goal per stage and something to make or do at the end of it, '+
+  'so watching turns into doing. Finishing a ladder unlocks the next one.</p>'+
+  '<h3>Before you use it</h3>'+
+  '<ul>'+
+  '<li>Playback uses YouTube&rsquo;s own embedded player. Video streams are not touched, copied or re-hosted, '+
+  'and every view counts for the creator as normal.</li>'+
+  '<li>Age numbers are one parent&rsquo;s judgement, not a rating system. Read the note on a video before pressing play.</li>'+
+  '<li>Progress lives in this browser&rsquo;s local storage. Clearing site data resets the quests. Nothing leaves the device.</li>'+
+  '<li>A few videos carry a warning &mdash; usually length, a bleak ending, or a hot soldering iron. They are marked in orange.</li>'+
+  '</ul>'+
+  '<h3>What was left out</h3>'+
+  '<p>Channels built for watch time rather than understanding, staged &ldquo;experiments&rdquo;, reaction and unboxing content, '+
+  'and anything that depends on a cliffhanger to keep a child in the chair. The bottom row of the '+
+  '<b>Channels</b> page spells this out.</p>'+
+  '<h3>Keyboard</h3>'+
+  '<p><kbd>J</kbd> / <kbd>&darr;</kbd> next video &middot; <kbd>K</kbd> / <kbd>&uarr;</kbd> previous &middot; '+
+  '<kbd>Space</kbd> play or pause &middot; <kbd>Enter</kbd> mark watched &middot; <kbd>Esc</kbd> close the player</p>'+
+  '<h3>On a television</h3>'+
+  '<p>Open <a href="tv.html">tv.html</a> instead. It is built for a remote control: arrow keys to move, '+
+  'OK to play. Progress is shared with this page.</p>'+
+  '<div class="foot">Curated by '+esc(DATA.site.curator||"a parent")+' for '+esc(DATA.site.audience)+
+  '. List last checked '+esc(DATA.built)+'. Not affiliated with YouTube or Google; '+
+  'all videos remain the property of their creators.</div></div>';
+  main.onclick = clicks;
+}
+
+function clicks(e){
+  var g = e.target.closest ? e.target.closest("[data-go]") : null;
+  if (g){ go(g.getAttribute("data-go")); return; }
+  var pk = e.target.closest ? e.target.closest("[data-pick]") : null;
+  if (pk){ S.theme = pk.getAttribute("data-pick"); save(); go("quest"); return; }
+  var tk = e.target.closest ? e.target.closest("[data-tick]") : null;
+  if (tk){ toggle(tk.getAttribute("data-tick")); render(); return; }
+  var pl = e.target.closest ? e.target.closest("[data-play]") : null;
+  if (pl){ openFeed(pl.getAttribute("data-play"), pl.getAttribute("data-q")); return; }
+}
+function toggle(id){
+  if (S.watched[id]) delete S.watched[id]; else S.watched[id] = Date.now();
+  save();
+}
+
+/* ============================ feed / player ============================ */
+var feedEl = document.getElementById("feed"), queue = [], cur = 0, players = {}, apiReady = false, pending = null;
+
+window.onYouTubeIframeAPIReady = function(){ apiReady = true; if (pending !== null){ var p = pending; pending = null; mount(p); } };
+(function(){
+  var s = document.createElement("script");
+  s.src = "https://www.youtube.com/iframe_api"; s.async = true;
+  document.head.appendChild(s);
+})();
+
+function buildQueue(q){
+  var i, t;
+  if (q && q.indexOf("theme:") === 0){
+    var tid = q.slice(6);
+    for (i=0;i<THEMES.length;i++) if (THEMES[i].id === tid) t = THEMES[i];
+    if (t) return themeIds(t);
+  }
+  if (q && q.indexOf("cat:") === 0){
+    var c = q.slice(4);
+    return ALIVE.filter(function(v){ return c==="all" || v.category===c; }).map(function(v){ return v.id; });
+  }
+  return ALIVE.map(function(v){ return v.id; });
+}
+
+function openFeed(id, q){
+  queue = buildQueue(q);
+  var at = queue.indexOf(id);
+  if (at < 0){ queue = [id].concat(queue); at = 0; }
+  cur = at;
+  var h = '<div class="ftop"><button class="xbtn" id="fx">&times;</button>'+
+          '<div class="ti" id="ftitle"></div></div><div class="fscroll" style="height:100%"></div>'+
+          '<div class="fbar"><span class="pos" id="fpos"></span><span class="sp"></span>'+
+          '<button class="fb" id="fauto">Auto-advance</button>'+
+          '<button class="fb main" id="fdone">&#10003; Watched</button>'+
+          '<button class="fb" id="fnext">Next &darr;</button></div>';
+  feedEl.className = "feed"; feedEl.innerHTML = h;
+  var sc = document.createElement("div");
+  for (var i=0;i<queue.length;i++) sc.appendChild(card(queue[i], i));
+  feedEl.replaceChild(sc, feedEl.getElementsByClassName("fscroll")[0]);
+  document.body.style.overflow = "hidden";
+  feedEl.classList.remove("hide");
+  document.getElementById("fx").onclick = closeFeed;
+  document.getElementById("fnext").onclick = function(){ jump(cur+1); };
+  document.getElementById("fdone").onclick = function(){ toggle(queue[cur]); syncBar(); };
+  var fa = document.getElementById("fauto");
+  fa.onclick = function(){ S.autoplay = !S.autoplay; save(); syncBar(); };
+  feedEl.addEventListener("click", function(e){
+    var p = e.target.closest ? e.target.closest(".poster") : null;
+    if (p) mount(parseInt(p.getAttribute("data-i"), 10));
+  });
+  feedEl.addEventListener("scroll", onScroll, false);
+  setTimeout(function(){ scrollTo_(cur, false); syncBar(); mount(cur); }, 30);
+}
+function closeFeed(){
+  for (var k in players) if (players.hasOwnProperty(k)){ try { players[k].destroy(); } catch(e){} }
+  players = {};
+  feedEl.classList.add("hide"); feedEl.innerHTML = "";
+  document.body.style.overflow = "";
+  render();
+}
+function card(id, i){
+  var v = V[id], d = document.createElement("div");
+  d.className = "card"; d.setAttribute("data-i", i);
+  d.innerHTML = '<div class="stagewrap"><div class="ph poster" data-i="'+i+'" id="slot'+i+'">'+
+    '<img src="'+v.cover+'" alt=""><div class="pbig">&#9654;</div></div>'+
+    '<div class="cinfo"><div class="t">'+esc(v.title)+'</div>'+
+    '<div class="c">'+esc(v.channel)+' &middot; '+v.duration+' &middot; '+esc(v.category)+' &middot; age '+v.minAge+'+</div>'+
+    '<div class="why">'+esc(v.reason)+'</div>'+
+    (v.caution ? '<div class="why caut">&#9888; '+esc(v.caution)+'</div>' : '')+
+    '<div class="why"><a href="'+esc(v.url)+'" target="_blank" rel="noopener">Open on YouTube &nearr;</a></div>'+
+    '</div></div>';
+  return d;
+}
+function mount(i){
+  if (i < 0 || i >= queue.length) return;
+  if (!apiReady || !window.YT || !YT.Player){ pending = i; return; }
+  var id = queue[i], slot = document.getElementById("slot"+i);
+  if (!slot || players[i]) { if (players[i]) try { players[i].playVideo(); } catch(e){} return; }
+  slot.className = "ph"; slot.innerHTML = '<div id="yt'+i+'"></div>';
+  players[i] = new YT.Player("yt"+i, {
+    videoId: id,
+    host: "https://www.youtube-nocookie.com",
+    playerVars: {
+      rel:0, iv_load_policy:3, playsinline:1, modestbranding:1, fs:1,
+      enablejsapi:1, origin: location.protocol + "//" + location.host
+    },
+    events: {
+      onReady: function(ev){ try { ev.target.playVideo(); } catch(e){} },
+      onStateChange: function(ev){
+        if (ev.data === YT.PlayerState.ENDED){
+          if (!S.watched[queue[i]]) { S.watched[queue[i]] = Date.now(); save(); syncBar(); }
+          if (S.autoplay) jump(i+1);
+        }
+      }
+    }
+  });
+  // keep memory sane on TV browsers: drop players more than 2 cards away
+  for (var k in players){
+    if (players.hasOwnProperty(k) && Math.abs(parseInt(k,10) - i) > 2){
+      try { players[k].destroy(); } catch(e){}
+      var old = document.getElementById("slot"+k);
+      if (old){ old.className = "ph poster"; old.setAttribute("data-i", k);
+        old.innerHTML = '<img src="'+V[queue[k]].cover+'" alt=""><div class="pbig">&#9654;</div>'; }
+      delete players[k];
+    }
+  }
+}
+function scrollTo_(i, smooth){
+  var c = feedEl.querySelector('.card[data-i="'+i+'"]');
+  if (!c) return;
+  if (smooth && c.scrollIntoView) { try { c.scrollIntoView({behavior:"smooth", block:"start"}); return; } catch(e){} }
+  feedEl.scrollTop = c.offsetTop;
+}
+function jump(i){
+  if (i < 0 || i >= queue.length) return;
+  cur = i; scrollTo_(i, true); syncBar(); mount(i);
+}
+var st_ = null;
+function onScroll(){
+  if (st_) clearTimeout(st_);
+  st_ = setTimeout(function(){
+    var h = feedEl.clientHeight, i = Math.round(feedEl.scrollTop / h);
+    if (i !== cur && i >= 0 && i < queue.length){ cur = i; syncBar(); if (S.autoplay) mount(i); }
+  }, 90);
+}
+function syncBar(){
+  if (feedEl.className.indexOf("hide") >= 0) return;
+  var v = V[queue[cur]];
+  var ft = document.getElementById("ftitle"), fp = document.getElementById("fpos"),
+      fd = document.getElementById("fdone"), fa = document.getElementById("fauto");
+  if (ft) ft.textContent = v.title + "  -  " + v.channel;
+  if (fp) fp.textContent = (cur+1) + " / " + queue.length;
+  if (fd){ var seen = !!S.watched[v.id];
+    fd.className = "fb main" + (seen ? " on" : ""); fd.innerHTML = seen ? "&#10003; Watched" : "&#10003; Mark watched"; }
+  if (fa) fa.className = "fb" + (S.autoplay ? " on" : "");
+}
+
+/* ============================ keys ============================ */
+document.addEventListener("keydown", function(e){
+  var open = feedEl.className.indexOf("hide") < 0;
+  if (!open) return;
+  var k = e.key;
+  if (k === "Escape"){ closeFeed(); e.preventDefault(); return; }
+  if (k === "j" || k === "J" || k === "ArrowDown" || k === "PageDown"){ jump(cur+1); e.preventDefault(); return; }
+  if (k === "k" || k === "K" || k === "ArrowUp" || k === "PageUp"){ jump(cur-1); e.preventDefault(); return; }
+  if (k === "Enter"){ toggle(queue[cur]); syncBar(); e.preventDefault(); return; }
+  if (k === " "){
+    var p = players[cur];
+    if (p){ try { p.getPlayerState() === 1 ? p.pauseVideo() : p.playVideo(); } catch(err){} }
+    else mount(cur);
+    e.preventDefault();
+  }
+}, false);
+
+/* ============================ boot ============================ */
+if (!S.theme) { S.theme = activeTheme().id; save(); }
+go("quest");
+})();
+</script>
+</body>
+</html>
